@@ -1,9 +1,7 @@
-# frozen_string_literal: true
-
 require 'test_helper'
 require 'ostruct'
 
-class ControllerAuthenticatableTest < Devise::ControllerTestCase
+class ControllerAuthenticatableTest < ActionController::TestCase
   tests ApplicationController
 
   def setup
@@ -98,7 +96,7 @@ class ControllerAuthenticatableTest < Devise::ControllerTestCase
 
   test 'proxy admin_signed_in? to authenticatewith admin scope' do
     @mock_warden.expects(:authenticate).with(scope: :admin)
-    refute @controller.admin_signed_in?
+    assert_not @controller.admin_signed_in?
   end
 
   test 'proxy publisher_account_signed_in? to authenticate with namespaced publisher account scope' do
@@ -152,11 +150,11 @@ class ControllerAuthenticatableTest < Devise::ControllerTestCase
     @controller.sign_in(user, force: true)
   end
 
-  test 'bypass the sign in' do
+  test 'sign in accepts bypass as option' do
     user = User.new
     @mock_warden.expects(:session_serializer).returns(serializer = mock())
     serializer.expects(:store).with(user, :user)
-    @controller.bypass_sign_in(user)
+    @controller.sign_in(user, bypass: true)
   end
 
   test 'sign out clears up any signed in user from all scopes' do
@@ -166,8 +164,8 @@ class ControllerAuthenticatableTest < Devise::ControllerTestCase
     @controller.instance_variable_set(:@current_user, user)
     @controller.instance_variable_set(:@current_admin, user)
     @controller.sign_out
-    assert_nil @controller.instance_variable_get(:@current_user)
-    assert_nil @controller.instance_variable_get(:@current_admin)
+    assert_equal nil, @controller.instance_variable_get(:@current_user)
+    assert_equal nil, @controller.instance_variable_get(:@current_admin)
   end
 
   test 'sign out logs out and clears up any signed in user by scope' do
@@ -177,7 +175,7 @@ class ControllerAuthenticatableTest < Devise::ControllerTestCase
     @mock_warden.expects(:clear_strategies_cache!).with(scope: :user).returns(true)
     @controller.instance_variable_set(:@current_user, user)
     @controller.sign_out(:user)
-    assert_nil @controller.instance_variable_get(:@current_user)
+    assert_equal nil, @controller.instance_variable_get(:@current_user)
   end
 
   test 'sign out accepts a resource as argument' do
@@ -247,11 +245,6 @@ class ControllerAuthenticatableTest < Devise::ControllerTestCase
     assert_equal "/foo?bar=baz", @controller.stored_location_for(:user)
   end
 
-  test 'store location for stores fragments' do
-    @controller.store_location_for(:user, "/foo#bar")
-    assert_equal "/foo#bar", @controller.stored_location_for(:user)
-  end
-
   test 'after sign in path defaults to root path if none by was specified for the given scope' do
     assert_equal root_path, @controller.after_sign_in_path_for(:user)
   end
@@ -313,6 +306,6 @@ class ControllerAuthenticatableTest < Devise::ControllerTestCase
   end
 
   test 'is not a devise controller' do
-    refute @controller.devise_controller?
+    assert_not @controller.devise_controller?
   end
 end

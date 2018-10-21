@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 class Devise::ConfirmationsController < DeviseController
   # GET /resource/confirmation/new
   def new
@@ -24,7 +22,7 @@ class Devise::ConfirmationsController < DeviseController
     yield resource if block_given?
 
     if resource.errors.empty?
-      set_flash_message!(:notice, :confirmed)
+      set_flash_message(:notice, :confirmed) if is_flashing_format?
       respond_with_navigational(resource){ redirect_to after_confirmation_path_for(resource_name, resource) }
     else
       respond_with_navigational(resource.errors, status: :unprocessable_entity){ render :new }
@@ -45,9 +43,5 @@ class Devise::ConfirmationsController < DeviseController
       else
         new_session_path(resource_name)
       end
-    end
-
-    def translation_scope
-      'devise.confirmations'
     end
 end

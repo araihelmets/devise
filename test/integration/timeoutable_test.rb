@@ -1,8 +1,6 @@
-# frozen_string_literal: true
-
 require 'test_helper'
 
-class SessionTimeoutTest < Devise::IntegrationTest
+class SessionTimeoutTest < ActionDispatch::IntegrationTest
 
   def last_request_at
     @controller.user_session['last_request_at']
@@ -22,19 +20,7 @@ class SessionTimeoutTest < Devise::IntegrationTest
     old_last_request = last_request_at
     assert_not_nil last_request_at
 
-    get users_path, headers: { 'devise.skip_trackable' => true }
-    assert_equal old_last_request, last_request_at
-  end
-
-  test 'does not set last request at in user session after each request if timeoutable is disabled' do
-    sign_in_as_user
-    old_last_request = last_request_at
-    assert_not_nil last_request_at
-
-    new_time = 2.seconds.from_now
-    Time.stubs(:now).returns(new_time)
-
-    get users_path, headers: { 'devise.skip_timeoutable' => true }
+    get users_path, {}, 'devise.skip_trackable' => true
     assert_equal old_last_request, last_request_at
   end
 
@@ -58,7 +44,7 @@ class SessionTimeoutTest < Devise::IntegrationTest
 
       get users_path
       assert_redirected_to users_path
-      refute warden.authenticated?(:user)
+      assert_not warden.authenticated?(:user)
       assert warden.authenticated?(:admin)
     end
   end
@@ -72,8 +58,8 @@ class SessionTimeoutTest < Devise::IntegrationTest
       assert_not_nil last_request_at
 
       get root_path
-      refute warden.authenticated?(:user)
-      refute warden.authenticated?(:admin)
+      assert_not warden.authenticated?(:user)
+      assert_not warden.authenticated?(:admin)
     end
   end
 
@@ -91,7 +77,7 @@ class SessionTimeoutTest < Devise::IntegrationTest
     user = sign_in_as_user
     get expire_user_path(user)
 
-    delete destroy_user_session_path
+    get destroy_user_session_path
 
     assert_response :redirect
     assert_redirected_to root_path
@@ -110,18 +96,35 @@ class SessionTimeoutTest < Devise::IntegrationTest
 
     assert_response :success
     assert_contain 'Sign in'
-    refute warden.authenticated?(:user)
+    assert_not warden.authenticated?(:user)
   end
 
   test 'time out is not triggered on sign in' do
     user = sign_in_as_user
     get expire_user_path(user)
 
-    post "/users/sign_in", params: { email: user.email, password: "123456" }
+    post "/users/sign_in", email: user.email, password: "123456"
 
     assert_response :redirect
     follow_redirect!
     assert_contain 'You are signed in'
+  end
+
+  test 'admin does not explode on time out' do
+    admin = sign_in_as_admin
+    get expire_admin_path(admin)
+
+    Admin.send :define_method, :reset_authentication_token! do
+      nil
+    end
+
+    begin
+      get admins_path
+      assert_redirected_to admins_path
+      assert_not warden.authenticated?(:admin)
+    ensure
+      Admin.send(:remove_method, :reset_authentication_token!)
+    end
   end
 
   test 'user configured timeout limit' do
@@ -136,7 +139,7 @@ class SessionTimeoutTest < Devise::IntegrationTest
       get expire_user_path(user)
       get users_path
       assert_redirected_to users_path
-      refute warden.authenticated?(:user)
+      assert_not warden.authenticated?(:user)
     end
   end
 
@@ -177,7 +180,7 @@ class SessionTimeoutTest < Devise::IntegrationTest
     assert warden.authenticated?(:user)
   end
 
-  test 'does not crash when the last_request_at is a String' do
+  test 'does not crashes when the last_request_at is a String' do
     user = sign_in_as_user
 
     get edit_form_user_path(user, last_request_at: Time.now.utc.to_s)

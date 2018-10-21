@@ -1,13 +1,10 @@
-# frozen_string_literal: true
-
 module SharedUser
   extend ActiveSupport::Concern
 
   included do
     devise :database_authenticatable, :confirmable, :lockable, :recoverable,
            :registerable, :rememberable, :timeoutable,
-           :trackable, :validatable, :omniauthable, password_length: 7..72,
-           reconfirmable: false
+           :trackable, :validatable, :omniauthable, password_length: 7..128
 
     attr_accessor :other_key
 

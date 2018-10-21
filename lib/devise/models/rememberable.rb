@@ -1,12 +1,10 @@
-# frozen_string_literal: true
-
 require 'devise/strategies/rememberable'
 require 'devise/hooks/rememberable'
 require 'devise/hooks/forgetable'
 
 module Devise
   module Models
-    # Rememberable manages generating and clearing token for remembering the user
+    # Rememberable manages generating and clearing token for remember the user
     # from a saved cookie. Rememberable also has utility methods for dealing
     # with serializing the user into the cookie and back from the cookie, trying
     # to lookup the record based on the saved information.
@@ -41,15 +39,17 @@ module Devise
     module Rememberable
       extend ActiveSupport::Concern
 
-      attr_accessor :remember_me
+      attr_accessor :remember_me, :extend_remember_period
 
       def self.required_fields(klass)
         [:remember_created_at]
       end
 
-      def remember_me!
-        self.remember_token ||= self.class.remember_token if respond_to?(:remember_token)
-        self.remember_created_at ||= Time.now.utc
+      # Generate a new remember token and save the record without validations
+      # unless remember_across_browsers is true and the user already has a valid token.
+      def remember_me!(extend_period=false)
+        self.remember_token = self.class.remember_token if generate_remember_token?
+        self.remember_created_at = Time.now.utc if generate_remember_timestamp?(extend_period)
         save(validate: false) if self.changed?
       end
 
@@ -57,26 +57,28 @@ module Devise
       # it exists), and save the record without validations.
       def forget_me!
         return unless persisted?
-        self.remember_token = nil if respond_to?(:remember_token)
+        self.remember_token = nil if respond_to?(:remember_token=)
         self.remember_created_at = nil if self.class.expire_all_remember_me_on_sign_out
         save(validate: false)
       end
 
-      def remember_expires_at
-        self.class.remember_for.from_now
+      # Remember token should be expired if expiration time not overpass now.
+      def remember_expired?
+        remember_created_at.nil? || (remember_expires_at <= Time.now.utc)
       end
 
-      def extend_remember_period
-        self.class.extend_remember_period
+      # Remember token expires at created time + remember_for configuration
+      def remember_expires_at
+        remember_created_at + self.class.remember_for
       end
 
       def rememberable_value
         if respond_to?(:remember_token)
           remember_token
-        elsif respond_to?(:authenticatable_salt) && (salt = authenticatable_salt.presence)
+        elsif respond_to?(:authenticatable_salt) && (salt = authenticatable_salt)
           salt
         else
-          raise "authenticatable_salt returned nil for the #{self.class.name} model. " \
+          raise "authenticable_salt returned nil for the #{self.class.name} model. " \
             "In order to use rememberable, you must ensure a password is always set " \
             "or have a remember_token column in your model or implement your own " \
             "rememberable_value in the model with custom logic."
@@ -87,60 +89,29 @@ module Devise
         self.class.rememberable_options
       end
 
-      # A callback initiated after successfully being remembered. This can be
-      # used to insert your own logic that is only run after the user is
-      # remembered.
-      #
-      # Example:
-      #
-      #   def after_remembered
-      #     self.update_attribute(:invite_code, nil)
-      #   end
-      #
-      def after_remembered
+    protected
+
+      def generate_remember_token? #:nodoc:
+        respond_to?(:remember_token) && remember_expired?
       end
 
-      def remember_me?(token, generated_at)
-        # TODO: Normalize the JSON type coercion along with the Timeoutable hook
-        # in a single place https://github.com/plataformatec/devise/blob/ffe9d6d406e79108cf32a2c6a1d0b3828849c40b/lib/devise/hooks/timeoutable.rb#L14-L18
-        if generated_at.is_a?(String)
-          generated_at = time_from_json(generated_at)
-        end
-
-        # The token is only valid if:
-        # 1. we have a date
-        # 2. the current time does not pass the expiry period
-        # 3. the record has a remember_created_at date
-        # 4. the token date is bigger than the remember_created_at
-        # 5. the token matches
-        generated_at.is_a?(Time) &&
-         (self.class.remember_for.ago < generated_at) &&
-         (generated_at > (remember_created_at || Time.now).utc) &&
-         Devise.secure_compare(rememberable_value, token)
-      end
-
-      private
-
-      def time_from_json(value)
-        if value =~ /\A\d+\.\d+\Z/
-          Time.at(value.to_f)
-        else
-          Time.parse(value) rescue nil
-        end
+      # Generate a timestamp if extend_remember_period is true, if no remember_token
+      # exists, or if an existing remember token has expired.
+      def generate_remember_timestamp?(extend_period) #:nodoc:
+        extend_period || remember_created_at.nil? || remember_expired?
       end
 
       module ClassMethods
         # Create the cookie key using the record id and remember_token
         def serialize_into_cookie(record)
-          [record.to_key, record.rememberable_value, Time.now.utc.to_f.to_s]
+          [record.to_key, record.rememberable_value]
         end
 
         # Recreate the user based on the stored cookie
-        def serialize_from_cookie(*args)
-          id, token, generated_at = *args
-
+        def serialize_from_cookie(id, remember_token)
           record = to_adapter.get(id)
-          record if record && record.remember_me?(token, generated_at)
+          record if record && !record.remember_expired? &&
+                    Devise.secure_compare(record.rememberable_value, remember_token)
         end
 
         # Generate a token checking if one does not already exist in the database.

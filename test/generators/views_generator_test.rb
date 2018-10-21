@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require "test_helper"
 
 class ViewsGeneratorTest < Rails::Generators::TestCase
@@ -46,13 +44,6 @@ class ViewsGeneratorTest < Rails::Generators::TestCase
     assert_file "app/views/devise/registrations/edit.html.erb"
     assert_no_file "app/views/devise/confirmations/new.html.erb"
     assert_no_file "app/views/devise/mailer/confirmation_instructions.html.erb"
-  end
-
-  test "Assert mailer specific directory with simple form" do
-    run_generator %w(-v mailer -b simple_form_for)
-    assert_file "app/views/devise/mailer/confirmation_instructions.html.erb"
-    assert_file "app/views/devise/mailer/reset_password_instructions.html.erb"
-    assert_file "app/views/devise/mailer/unlock_instructions.html.erb"
   end
 
   test "Assert specified directories with scope" do

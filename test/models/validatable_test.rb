@@ -1,6 +1,4 @@
 # encoding: UTF-8
-# frozen_string_literal: true
-
 require 'test_helper'
 
 class ValidatableTest < ActiveSupport::TestCase
@@ -31,9 +29,9 @@ class ValidatableTest < ActiveSupport::TestCase
     assert user.invalid?
     assert_not_equal 'is invalid', user.errors[:email].join
 
-    %w{invalid_email_format 123 $$$ () ☃}.each do |email|
+    %w{invalid_email_format 123 $$$ () ☃ bla@bla.}.each do |email|
       user.email = email
-      assert user.invalid?, "should be invalid with email #{email}"
+      assert user.invalid?, 'should be invalid with email ' << email
       assert_equal 'is invalid', user.errors[:email].join
     end
 
@@ -44,7 +42,7 @@ class ValidatableTest < ActiveSupport::TestCase
   test 'should accept valid emails' do
     %w(a.b.c@example.com test_mail@gmail.com any@any.net email@test.br 123@mail.test 1☃3@mail.test).each do |email|
       user = new_user(email: email)
-      assert user.valid?, "should be valid with email #{email}"
+      assert user.valid?, 'should be valid with email ' << email
       assert_blank user.errors[:email]
     end
   end
@@ -59,7 +57,11 @@ class ValidatableTest < ActiveSupport::TestCase
     user = new_user(password: 'new_password', password_confirmation: 'blabla')
     assert user.invalid?
 
-    assert_equal 'doesn\'t match Password', user.errors[:password_confirmation].join
+    if Devise.rails4?
+      assert_equal 'doesn\'t match Password', user.errors[:password_confirmation].join
+    else
+      assert_equal 'doesn\'t match confirmation', user.errors[:password].join
+    end
   end
 
   test 'should require password when updating/resetting password' do
@@ -77,7 +79,11 @@ class ValidatableTest < ActiveSupport::TestCase
     user.password_confirmation = 'another_password'
     assert user.invalid?
 
-    assert_equal 'doesn\'t match Password', user.errors[:password_confirmation].join
+    if Devise.rails4?
+      assert_equal 'doesn\'t match Password', user.errors[:password_confirmation].join
+    else
+      assert_equal 'doesn\'t match confirmation', user.errors[:password].join
+    end
   end
 
   test 'should require a password with minimum of 7 characters' do
@@ -86,10 +92,10 @@ class ValidatableTest < ActiveSupport::TestCase
     assert_equal 'is too short (minimum is 7 characters)', user.errors[:password].join
   end
 
-  test 'should require a password with maximum of 72 characters long' do
-    user = new_user(password: 'x'*73, password_confirmation: 'x'*73)
+  test 'should require a password with maximum of 128 characters long' do
+    user = new_user(password: 'x'*129, password_confirmation: 'x'*129)
     assert user.invalid?
-    assert_equal 'is too long (maximum is 72 characters)', user.errors[:password].join
+    assert_equal 'is too long (maximum is 128 characters)', user.errors[:password].join
   end
 
   test 'should not require password length when it\'s not changed' do
@@ -99,14 +105,14 @@ class ValidatableTest < ActiveSupport::TestCase
 
     user.password_confirmation = 'confirmation'
     assert user.invalid?
-    refute (user.errors[:password].join =~ /is too long/)
+    assert_not (user.errors[:password].join =~ /is too long/)
   end
 
   test 'should complain about length even if password is not required' do
-    user = new_user(password: 'x'*73, password_confirmation: 'x'*73)
+    user = new_user(password: 'x'*129, password_confirmation: 'x'*129)
     user.stubs(:password_required?).returns(false)
     assert user.invalid?
-    assert_equal 'is too long (maximum is 72 characters)', user.errors[:password].join
+    assert_equal 'is too long (maximum is 128 characters)', user.errors[:password].join
   end
 
   test 'should not be included in objects with invalid API' do

@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'devise/strategies/base'
 
 module Devise
@@ -29,7 +27,7 @@ module Devise
 
       # Receives a resource and check if it is valid by calling valid_for_authentication?
       # An optional block that will be triggered while validating can be optionally
-      # given as parameter. Check Devise::Models::Authenticatable.valid_for_authentication?
+      # given as parameter. Check Devise::Models::Authenticable.valid_for_authentication?
       # for more information.
       #
       # In case the resource can't be validated, it will fail with the given
@@ -59,7 +57,7 @@ module Devise
 
       # Check if this is a valid strategy for http authentication by:
       #
-      #   * Validating if the model allows http authentication;
+      #   * Validating if the model allows params authentication;
       #   * If any of the authorization headers were sent;
       #   * If all authentication keys are present;
       #
@@ -110,17 +108,14 @@ module Devise
         params_auth_hash.is_a?(Hash)
       end
 
-      # Note: unlike `Model.valid_password?`, this method does not actually
-      # ensure that the password in the params matches the password stored in
-      # the database. It only checks if the password is *present*. Do not rely
-      # on this method for validating that a given password is correct.
+      # Check if password is present.
       def valid_password?
         password.present?
       end
 
       # Helper to decode credentials from HTTP.
       def decode_credentials
-        return [] unless request.authorization && request.authorization =~ /^Basic (.*)/mi
+        return [] unless request.authorization && request.authorization =~ /^Basic (.*)/m
         Base64.decode64($1).split(/:/, 2)
       end
 

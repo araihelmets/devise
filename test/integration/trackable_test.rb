@@ -1,13 +1,6 @@
-# frozen_string_literal: true
-
 require 'test_helper'
 
-class TrackableHooksTest < Devise::IntegrationTest
-  test "trackable should not run model validations" do
-    sign_in_as_user
-
-    refute User.validations_performed
-  end
+class TrackableHooksTest < ActionDispatch::IntegrationTest
 
   test "current and last sign in timestamps are updated on each sign in" do
     user = create_user
@@ -23,7 +16,7 @@ class TrackableHooksTest < Devise::IntegrationTest
     assert_equal user.current_sign_in_at, user.last_sign_in_at
     assert user.current_sign_in_at >= user.created_at
 
-    delete destroy_user_session_path
+    visit destroy_user_session_path
     new_time = 2.seconds.from_now
     Time.stubs(:now).returns(new_time)
 
@@ -63,7 +56,7 @@ class TrackableHooksTest < Devise::IntegrationTest
     user.reload
     assert_equal 1, user.sign_in_count
 
-    delete destroy_user_session_path
+    visit destroy_user_session_path
     sign_in_as_user
     user.reload
     assert_equal 2, user.sign_in_count
@@ -87,7 +80,7 @@ class TrackableHooksTest < Devise::IntegrationTest
     end
     user.reload
     assert_equal 0, user.sign_in_count
-    delete destroy_user_session_path
+    visit destroy_user_session_path
 
     sign_in_as_user do
       header 'devise.skip_trackable', false

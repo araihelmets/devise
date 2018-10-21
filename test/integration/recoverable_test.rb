@@ -1,8 +1,6 @@
-# frozen_string_literal: true
-
 require 'test_helper'
 
-class PasswordTest < Devise::IntegrationTest
+class PasswordTest < ActionDispatch::IntegrationTest
 
   def visit_new_password_path
     visit new_user_session_path
@@ -12,7 +10,7 @@ class PasswordTest < Devise::IntegrationTest
   def request_forgot_password(&block)
     visit_new_password_path
     assert_response :success
-    refute warden.authenticated?(:user)
+    assert_not warden.authenticated?(:user)
 
     fill_in 'email', with: 'user@test.com'
     yield if block_given?
@@ -148,8 +146,8 @@ class PasswordTest < Devise::IntegrationTest
     assert_response :success
     assert_current_url '/users/password'
     assert_have_selector '#error_explanation'
-    assert_contain %r{Reset password token(.*)invalid}
-    refute user.reload.valid_password?('987654321')
+    assert_contain /Reset password token(.*)invalid/
+    assert_not user.reload.valid_password?('987654321')
   end
 
   test 'not authenticated user with valid reset password token but invalid password should not be able to change their password' do
@@ -162,8 +160,9 @@ class PasswordTest < Devise::IntegrationTest
     assert_response :success
     assert_current_url '/users/password'
     assert_have_selector '#error_explanation'
-    assert_contain "Password confirmation doesn't match Password"
-    refute user.reload.valid_password?('987654321')
+    assert_contain Devise.rails4? ?
+      "Password confirmation doesn't match Password" : "Password doesn't match confirmation"
+    assert_not user.reload.valid_password?('987654321')
   end
 
   test 'not authenticated user with valid data should be able to change their password' do
@@ -183,7 +182,7 @@ class PasswordTest < Devise::IntegrationTest
     reset_password {  fill_in 'Confirm new password', with: 'other_password' }
     assert_response :success
     assert_have_selector '#error_explanation'
-    refute user.reload.valid_password?('987654321')
+    assert_not user.reload.valid_password?('987654321')
 
     reset_password visit: false
     assert_contain 'Your password has been changed successfully.'
@@ -198,23 +197,10 @@ class PasswordTest < Devise::IntegrationTest
     assert warden.authenticated?(:user)
   end
 
-  test 'does not sign in user automatically after changing its password if config.sign_in_after_reset_password is false' do
-    swap Devise, sign_in_after_reset_password: false do
-      create_user
-      request_forgot_password
-      reset_password
-
-      assert_contain 'Your password has been changed successfully.'
-      assert_not_contain 'You are now signed in.'
-      assert_equal new_user_session_path, @request.path
-      assert !warden.authenticated?(:user)
-    end
-  end
-
   test 'does not sign in user automatically after changing its password if it\'s locked and unlock strategy is :none or :time' do
     [:none, :time].each do |strategy|
       swap Devise, unlock_strategy: strategy do
-        create_user(locked: true)
+        user = create_user(locked: true)
         request_forgot_password
         reset_password
 
@@ -252,14 +238,14 @@ class PasswordTest < Devise::IntegrationTest
 
   test 'reset password request with valid E-Mail in XML format should return valid response' do
     create_user
-    post user_password_path(format: 'xml'), params: { user: {email: "user@test.com"} }
+    post user_password_path(format: 'xml'), user: {email: "user@test.com"}
     assert_response :success
     assert_equal response.body, { }.to_xml
   end
 
   test 'reset password request with invalid E-Mail in XML format should return valid response' do
     create_user
-    post user_password_path(format: 'xml'), params: { user: {email: "invalid.test@test.com"} }
+    post user_password_path(format: 'xml'), user: {email: "invalid.test@test.com"}
     assert_response :unprocessable_entity
     assert response.body.include? %(<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<errors>)
   end
@@ -267,7 +253,7 @@ class PasswordTest < Devise::IntegrationTest
   test 'reset password request with invalid E-Mail in XML format should return empty and valid response' do
     swap Devise, paranoid: true do
       create_user
-      post user_password_path(format: 'xml'), params: { user: {email: "invalid@test.com"} }
+      post user_password_path(format: 'xml'), user: {email: "invalid@test.com"}
       assert_response :success
       assert_equal response.body, { }.to_xml
     end
@@ -276,9 +262,8 @@ class PasswordTest < Devise::IntegrationTest
   test 'change password with valid parameters in XML format should return valid response' do
     create_user
     request_forgot_password
-    put user_password_path(format: 'xml'), params: { user: {
+    put user_password_path(format: 'xml'), user: {
       reset_password_token: 'abcdef', password: '987654321', password_confirmation: '987654321'
-      }
     }
     assert_response :success
     assert warden.authenticated?(:user)
@@ -287,7 +272,7 @@ class PasswordTest < Devise::IntegrationTest
   test 'change password with invalid token in XML format should return invalid response' do
     create_user
     request_forgot_password
-    put user_password_path(format: 'xml'), params: { user: {reset_password_token: 'invalid.token', password: '987654321', password_confirmation: '987654321'} }
+    put user_password_path(format: 'xml'), user: {reset_password_token: 'invalid.token', password: '987654321', password_confirmation: '987654321'}
     assert_response :unprocessable_entity
     assert response.body.include? %(<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<errors>)
   end
@@ -295,7 +280,7 @@ class PasswordTest < Devise::IntegrationTest
   test 'change password with invalid new password in XML format should return invalid response' do
     user = create_user
     request_forgot_password
-    put user_password_path(format: 'xml'), params: { user: {reset_password_token: user.reload.reset_password_token, password: '', password_confirmation: '987654321'} }
+    put user_password_path(format: 'xml'), user: {reset_password_token: user.reload.reset_password_token, password: '', password_confirmation: '987654321'}
     assert_response :unprocessable_entity
     assert response.body.include? %(<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<errors>)
   end
@@ -303,7 +288,7 @@ class PasswordTest < Devise::IntegrationTest
   test "when using json requests to ask a confirmable request, should not return the object" do
     user = create_user(confirm: false)
 
-    post user_password_path(format: :json), params: { user: { email: user.email } }
+    post user_password_path(format: :json), user: { email: user.email }
 
     assert_response :success
     assert_equal response.body, "{}"

@@ -1,21 +1,18 @@
-# frozen_string_literal: true
-
 require 'test_helper'
 
-class PasswordsControllerTest < Devise::ControllerTestCase
+class PasswordsControllerTest < ActionController::TestCase
   tests Devise::PasswordsController
-  include Devise::Test::ControllerHelpers
+  include Devise::TestHelpers
 
   setup do
     request.env["devise.mapping"] = Devise.mappings[:user]
-    @user = create_user.tap(&:confirm)
+    @user = create_user.tap(&:confirm!)
     @raw  = @user.send_reset_password_instructions
   end
 
   def put_update_with_params
-    put :update, params: { "user" => {
-        "reset_password_token" => @raw, "password" => "1234567", "password_confirmation" => "1234567"
-      }
+    put :update, "user" => {
+      "reset_password_token" => @raw, "password" => "1234567", "password_confirmation" => "1234567"
     }
   end
 

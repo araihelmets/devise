@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'test_helper'
 
 module Devise
@@ -16,11 +14,11 @@ class DeviseTest < ActiveSupport::TestCase
   test 'bcrypt on the class' do
     password = "super secret"
     klass    = Struct.new(:pepper, :stretches).new("blahblah", 2)
-    hash     = Devise::Encryptor.digest(klass, password)
+    hash     = Devise.bcrypt(klass, password)
     assert_equal ::BCrypt::Password.create(hash), hash
 
     klass    = Struct.new(:pepper, :stretches).new("bla", 2)
-    hash     = Devise::Encryptor.digest(klass, password)
+    hash     = Devise.bcrypt(klass, password)
     assert_not_equal ::BCrypt::Password.new(hash), hash
   end
 
@@ -69,18 +67,18 @@ class DeviseTest < ActiveSupport::TestCase
   end
 
   test 'add new module using the helper method' do
-    Devise.add_module(:coconut)
+    assert_nothing_raised(Exception) { Devise.add_module(:coconut) }
     assert_equal 1, Devise::ALL.select { |v| v == :coconut }.size
-    refute Devise::STRATEGIES.include?(:coconut)
-    refute defined?(Devise::Models::Coconut)
+    assert_not Devise::STRATEGIES.include?(:coconut)
+    assert_not defined?(Devise::Models::Coconut)
     Devise::ALL.delete(:coconut)
 
-    Devise.add_module(:banana, strategy: :fruits)
+    assert_nothing_raised(Exception) { Devise.add_module(:banana, strategy: :fruits) }
     assert_equal :fruits, Devise::STRATEGIES[:banana]
     Devise::ALL.delete(:banana)
     Devise::STRATEGIES.delete(:banana)
 
-    Devise.add_module(:kivi, controller: :fruits)
+    assert_nothing_raised(Exception) { Devise.add_module(:kivi, controller: :fruits) }
     assert_equal :fruits, Devise::CONTROLLERS[:kivi]
     Devise::ALL.delete(:kivi)
     Devise::CONTROLLERS.delete(:kivi)
@@ -88,16 +86,16 @@ class DeviseTest < ActiveSupport::TestCase
 
   test 'should complain when comparing empty or different sized passes' do
     [nil, ""].each do |empty|
-      refute Devise.secure_compare(empty, "something")
-      refute Devise.secure_compare("something", empty)
-      refute Devise.secure_compare(empty, empty)
+      assert_not Devise.secure_compare(empty, "something")
+      assert_not Devise.secure_compare("something", empty)
+      assert_not Devise.secure_compare(empty, empty)
     end
-    refute Devise.secure_compare("size_1", "size_four")
+    assert_not Devise.secure_compare("size_1", "size_four")
   end
 
   test 'Devise.email_regexp should match valid email addresses' do
-    valid_emails = ["test@example.com", "jo@jo.co", "f4$_m@you.com", "testing.example@example.com.ua", "test@tt", "test@valid---domain.com"]
-    non_valid_emails = ["rex", "test user@example.com", "test_user@example server.com"]
+    valid_emails = ["test@example.com", "jo@jo.co", "f4$_m@you.com", "testing.example@example.com.ua"]
+    non_valid_emails = ["rex", "test@go,com", "test user@example.com", "test_user@example server.com"]
 
     valid_emails.each do |email|
       assert_match Devise.email_regexp, email

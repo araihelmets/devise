@@ -1,11 +1,9 @@
-# frozen_string_literal: true
-
 require 'test_helper'
 
 class MyController < DeviseController
 end
 
-class HelpersTest < Devise::ControllerTestCase
+class HelpersTest < ActionController::TestCase
   tests MyController
 
   def setup
@@ -15,16 +13,16 @@ class HelpersTest < Devise::ControllerTestCase
   end
 
   test 'get resource name from env' do
-    assert_equal :user, @controller.send(:resource_name)
+    assert_equal :user, @controller.resource_name
   end
 
   test 'get resource class from env' do
-    assert_equal User, @controller.send(:resource_class)
+    assert_equal User, @controller.resource_class
   end
 
   test 'get resource instance variable from env' do
     @controller.instance_variable_set(:@user, user = User.new)
-    assert_equal user, @controller.send(:resource)
+    assert_equal user, @controller.resource
   end
 
   test 'set resource instance variable from env' do
@@ -38,16 +36,18 @@ class HelpersTest < Devise::ControllerTestCase
   test 'get resource params from request params using resource name as key' do
     user_params = {'email' => 'shirley@templar.com'}
 
-    # Stub controller name so strong parameters can filter properly.
-    # DeviseController does not allow any parameters by default.
-    @controller.stubs(:controller_name).returns(:sessions_controller)
+    params = if Devise.rails4?
+      # Stub controller name so strong parameters can filter properly.
+      # DeviseController does not allow any parameters by default.
+      @controller.stubs(:controller_name).returns(:sessions_controller)
 
-    params = ActionController::Parameters.new({'user' => user_params})
-
+      ActionController::Parameters.new({'user' => user_params})
+    else
+      HashWithIndifferentAccess.new({'user' => user_params})
+    end
     @controller.stubs(:params).returns(params)
 
-    res_params = @controller.send(:resource_params).permit!.to_h
-    assert_equal user_params, res_params
+    assert_equal user_params, @controller.send(:resource_params)
   end
 
   test 'resources methods are not controller actions' do
@@ -80,7 +80,7 @@ class HelpersTest < Devise::ControllerTestCase
 
   test 'signed in resource returns signed in resource for current scope' do
     @mock_warden.expects(:authenticate).with(scope: :user).returns(User.new)
-    assert_kind_of User, @controller.send(:signed_in_resource)
+    assert_kind_of User, @controller.signed_in_resource
   end
 
   test 'is a devise controller' do
@@ -121,7 +121,7 @@ class HelpersTest < Devise::ControllerTestCase
     MyController.send(:public, :navigational_formats)
 
     swap Devise, navigational_formats: ['*/*', :html] do
-      refute @controller.navigational_formats.include?("*/*")
+      assert_not @controller.navigational_formats.include?("*/*")
     end
 
     MyController.send(:protected, :navigational_formats)

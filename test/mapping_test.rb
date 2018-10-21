@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'test_helper'
 
 class FakeRequest < Struct.new(:path_info, :params)
@@ -37,8 +35,8 @@ class MappingTest < ActiveSupport::TestCase
     assert_equal [], Devise.mappings[:skip_admin].used_routes
   end
 
-  test 'sign_out_via defaults to :delete' do
-    assert_equal :delete, Devise.mappings[:user].sign_out_via
+  test 'sign_out_via defaults to :get' do
+    assert_equal :get, Devise.mappings[:user].sign_out_via
   end
 
   test 'allows custom sign_out_via to be given' do
@@ -71,12 +69,6 @@ class MappingTest < ActiveSupport::TestCase
   test 'find scope works with single table inheritance' do
     assert_equal :user, Devise::Mapping.find_scope!(Class.new(User))
     assert_equal :user, Devise::Mapping.find_scope!(Class.new(User).new)
-  end
-
-  test 'find scope uses devise_scope' do
-    user = User.new
-    def user.devise_scope; :special_scope; end
-    assert_equal :special_scope, Devise::Mapping.find_scope!(user)
   end
 
   test 'find scope raises an error if cannot be found' do
@@ -117,7 +109,7 @@ class MappingTest < ActiveSupport::TestCase
     assert mapping.authenticatable?
     assert mapping.recoverable?
     assert mapping.lockable?
-    refute mapping.omniauthable?
+    assert_not mapping.omniauthable?
   end
 
   test 'find mapping by path' do

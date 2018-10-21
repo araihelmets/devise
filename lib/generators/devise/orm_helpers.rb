@@ -1,23 +1,38 @@
-# frozen_string_literal: true
-
 module Devise
   module Generators
     module OrmHelpers
       def model_contents
         buffer = <<-CONTENT
   # Include default devise modules. Others available are:
-  # :confirmable, :lockable, :timeoutable, :trackable and :omniauthable
+  # :confirmable, :lockable, :timeoutable and :omniauthable
   devise :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :validatable
+         :recoverable, :rememberable, :trackable, :validatable
+
+CONTENT
+        buffer += <<-CONTENT if needs_attr_accessible?
+  # Setup accessible (or protected) attributes for your model
+  attr_accessible :email, :password, :password_confirmation, :remember_me
 
 CONTENT
         buffer
       end
 
+      def needs_attr_accessible?
+        rails_3? && !strong_parameters_enabled?
+      end
+
+      def rails_3?
+        Rails::VERSION::MAJOR == 3
+      end
+
+      def strong_parameters_enabled?
+        defined?(ActionController::StrongParameters)
+      end
+
       private
 
       def model_exists?
-        File.exist?(File.join(destination_root, model_path))
+        File.exists?(File.join(destination_root, model_path))
       end
 
       def migration_exists?(table_name)
@@ -25,11 +40,7 @@ CONTENT
       end
 
       def migration_path
-        if Rails.version >= '5.0.3'
-          db_migrate_path
-        else
-          @migration_path ||= File.join("db", "migrate")
-        end
+        @migration_path ||= File.join("db", "migrate")
       end
 
       def model_path

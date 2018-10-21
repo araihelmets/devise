@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 module Devise
   # Responsible for handling devise mappings and routes configuration. Each
   # resource configured by devise_for in routes is actually creating a mapping
@@ -33,7 +31,6 @@ module Devise
     # Receives an object and find a scope for it. If a scope cannot be found,
     # raises an error. If a symbol is given, it's considered to be the scope.
     def self.find_scope!(obj)
-      obj = obj.devise_scope if obj.respond_to?(:devise_scope)
       case obj
       when String, Symbol
         return obj.to_sym

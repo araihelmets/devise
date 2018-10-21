@@ -1,23 +1,24 @@
-# frozen_string_literal: true
-
 require 'test_helper'
 
 class OmniAuthRoutesTest < ActionController::TestCase
+  ExpectedUrlGeneratiorError = Devise.rails4? ?
+    ActionController::UrlGenerationError : ActionController::RoutingError
+
   tests ApplicationController
 
   def assert_path(action, provider, with_param=true)
     # Resource param
     assert_equal @controller.send(action, :user, provider),
-                 @controller.send("user_#{provider}_#{action}")
+                 @controller.send("user_#{action}", provider)
 
     # With an object
     assert_equal @controller.send(action, User.new, provider),
-                 @controller.send("user_#{provider}_#{action}")
+                 @controller.send("user_#{action}", provider)
 
     if with_param
       # Default url params
       assert_equal @controller.send(action, :user, provider, param: 123),
-                   @controller.send("user_#{provider}_#{action}", param: 123)
+                   @controller.send("user_#{action}", provider, param: 123)
     end
   end
 
@@ -32,7 +33,7 @@ class OmniAuthRoutesTest < ActionController::TestCase
   test 'should generate authorization path' do
     assert_match "/users/auth/facebook", @controller.omniauth_authorize_path(:user, :facebook)
 
-    assert_raise NoMethodError do
+    assert_raise ExpectedUrlGeneratiorError do
       @controller.omniauth_authorize_path(:user, :github)
     end
   end

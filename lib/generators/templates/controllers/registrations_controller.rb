@@ -1,8 +1,6 @@
-# frozen_string_literal: true
-
 class <%= @scope_prefix %>RegistrationsController < Devise::RegistrationsController
-  # before_action :configure_sign_up_params, only: [:create]
-  # before_action :configure_account_update_params, only: [:update]
+# before_filter :configure_sign_up_params, only: [:create]
+# before_filter :configure_account_update_params, only: [:update]
 
   # GET /resource/sign_up
   # def new
@@ -40,14 +38,14 @@ class <%= @scope_prefix %>RegistrationsController < Devise::RegistrationsControl
 
   # protected
 
-  # If you have extra params to permit, append them to the sanitizer.
+  # You can put the params you want to permit in the empty array.
   # def configure_sign_up_params
-  #   devise_parameter_sanitizer.permit(:sign_up, keys: [:attribute])
+  #   devise_parameter_sanitizer.for(:sign_up) << :attribute
   # end
 
-  # If you have extra params to permit, append them to the sanitizer.
+  # You can put the params you want to permit in the empty array.
   # def configure_account_update_params
-  #   devise_parameter_sanitizer.permit(:account_update, keys: [:attribute])
+  #   devise_parameter_sanitizer.for(:account_update) << :attribute
   # end
 
   # The path used after sign up.

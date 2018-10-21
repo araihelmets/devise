@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'test_helper'
 
 class ResetPasswordInstructionsTest < ActionMailer::TestCase
@@ -41,16 +39,16 @@ class ResetPasswordInstructionsTest < ActionMailer::TestCase
     assert_equal [user.email], mail.to
   end
 
-  test 'set up sender from configuration' do
+  test 'setup sender from configuration' do
     assert_equal ['test@example.com'], mail.from
   end
 
-  test 'set up sender from custom mailer defaults' do
+  test 'setup sender from custom mailer defaults' do
     Devise.mailer = 'Users::Mailer'
     assert_equal ['custom@example.com'], mail.from
   end
 
-  test 'set up sender from custom mailer defaults with proc' do
+  test 'setup sender from custom mailer defaults with proc' do
     Devise.mailer = 'Users::FromProcMailer'
     assert_equal ['custom@example.com'], mail.from
   end
@@ -60,11 +58,11 @@ class ResetPasswordInstructionsTest < ActionMailer::TestCase
     assert_present mail.body.encoded
   end
 
-  test 'set up reply to as copy from sender' do
+  test 'setup reply to as copy from sender' do
     assert_equal ['test@example.com'], mail.reply_to
   end
 
-  test 'set up subject from I18n' do
+  test 'setup subject from I18n' do
     store_translations :en, devise: { mailer: { reset_password_instructions: { subject: 'Reset instructions' } } } do
       assert_equal 'Reset instructions', mail.subject
     end

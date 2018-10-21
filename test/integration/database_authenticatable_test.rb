@@ -1,8 +1,6 @@
-# frozen_string_literal: true
-
 require 'test_helper'
 
-class DatabaseAuthenticationTest < Devise::IntegrationTest
+class DatabaseAuthenticationTest < ActionDispatch::IntegrationTest
   test 'sign in with email of different case should succeed when email is in the list of case insensitive keys' do
     create_user(email: 'Foo@Bar.com')
 
@@ -21,7 +19,7 @@ class DatabaseAuthenticationTest < Devise::IntegrationTest
         fill_in 'email', with: 'foo@bar.com'
       end
 
-      refute warden.authenticated?(:user)
+      assert_not warden.authenticated?(:user)
     end
   end
 
@@ -43,14 +41,14 @@ class DatabaseAuthenticationTest < Devise::IntegrationTest
         fill_in 'email', with: ' foo@bar.com '
       end
 
-      refute warden.authenticated?(:user)
+      assert_not warden.authenticated?(:user)
     end
   end
 
   test 'sign in should not authenticate if not using proper authentication keys' do
     swap Devise, authentication_keys: [:username] do
       sign_in_as_user
-      refute warden.authenticated?(:user)
+      assert_not warden.authenticated?(:user)
     end
   end
 
@@ -61,7 +59,7 @@ class DatabaseAuthenticationTest < Devise::IntegrationTest
       end
 
       assert_contain 'Invalid email address'
-      refute warden.authenticated?(:admin)
+      assert_not warden.authenticated?(:admin)
     end
   end
 
@@ -70,21 +68,8 @@ class DatabaseAuthenticationTest < Devise::IntegrationTest
       fill_in 'password', with: 'abcdef'
     end
 
-    assert_contain 'Invalid Email or password'
-    refute warden.authenticated?(:admin)
-  end
-
-  test 'when in paranoid mode and without a valid e-mail' do
-    swap Devise, paranoid: true do
-      store_translations :en, devise: { failure: { not_found_in_database: 'Not found in database' } } do
-        sign_in_as_user do
-          fill_in 'email', with: 'wrongemail@test.com'
-        end
-        
-        assert_not_contain 'Not found in database'
-        assert_contain 'Invalid Email or password.'
-      end
-    end
+    assert_contain 'Invalid email or password'
+    assert_not warden.authenticated?(:admin)
   end
 
   test 'error message is configurable by resource name' do
@@ -94,17 +79,6 @@ class DatabaseAuthenticationTest < Devise::IntegrationTest
       end
 
       assert_contain 'Invalid credentials'
-    end
-  end
-
-  test 'valid sign in calls after_database_authentication callback' do
-    user = create_user(email: ' foo@bar.com ')
-
-    User.expects(:find_for_database_authentication).returns user
-    user.expects :after_database_authentication
-
-    sign_in_as_user do
-      fill_in 'email', with: 'foo@bar.com'
     end
   end
 end

@@ -1,8 +1,6 @@
-# frozen_string_literal: true
-
 require 'test_helper'
 
-class DeviseHelperTest < Devise::IntegrationTest
+class DeviseHelperTest < ActionDispatch::IntegrationTest
   setup do
     model_labels = { models: { user: "the user" } }
     translations = {

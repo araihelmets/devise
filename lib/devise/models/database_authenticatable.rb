@@ -1,24 +1,24 @@
-# frozen_string_literal: true
-
 require 'devise/strategies/database_authenticatable'
+require 'bcrypt'
 
 module Devise
+  # Digests the password using bcrypt.
+  def self.bcrypt(klass, password)
+    ::BCrypt::Password.create("#{password}#{klass.pepper}", cost: klass.stretches).to_s
+  end
+
   module Models
-    # Authenticatable Module, responsible for hashing the password and
-    # validating the authenticity of a user while signing in.
+    # Authenticatable Module, responsible for encrypting password and validating
+    # authenticity of a user while signing in.
     #
     # == Options
     #
-    # DatabaseAuthenticatable adds the following options to devise_for:
+    # DatabaseAuthenticable adds the following options to devise_for:
     #
     #   * +pepper+: a random string used to provide a more secure hash. Use
-    #     `rails secret` to generate new keys.
+    #     `rake secret` to generate new keys.
     #
     #   * +stretches+: the cost given to bcrypt.
-    #
-    #   * +send_email_changed_notification+: notify original email when it changes.
-    #
-    #   * +send_password_change_notification+: notify email when password changes.
     #
     # == Examples
     #
@@ -28,44 +28,26 @@ module Devise
       extend ActiveSupport::Concern
 
       included do
-        after_update :send_email_changed_notification, if: :send_email_changed_notification?
-        after_update :send_password_change_notification, if: :send_password_change_notification?
-
         attr_reader :password, :current_password
         attr_accessor :password_confirmation
-      end
-
-      def initialize(*args, &block)
-        @skip_email_changed_notification = false
-        @skip_password_change_notification = false
-        super 
-      end
-
-      # Skips sending the email changed notification after_update
-      def skip_email_changed_notification!
-        @skip_email_changed_notification = true
-      end
-
-      # Skips sending the password change notification after_update
-      def skip_password_change_notification!
-        @skip_password_change_notification = true
       end
 
       def self.required_fields(klass)
         [:encrypted_password] + klass.authentication_keys
       end
 
-      # Generates a hashed password based on the given value.
-      # For legacy reasons, we use `encrypted_password` to store
-      # the hashed password.
+      # Generates password encryption based on the given value.
       def password=(new_password)
         @password = new_password
         self.encrypted_password = password_digest(@password) if @password.present?
       end
 
-      # Verifies whether a password (ie from sign in) is the user password.
+      # Verifies whether an password (ie from sign in) is the user password.
       def valid_password?(password)
-        Devise::Encryptor.compare(self.class, encrypted_password, password)
+        return false if encrypted_password.blank?
+        bcrypt   = ::BCrypt::Password.new(encrypted_password)
+        password = ::BCrypt::Engine.hash_secret("#{password}#{self.class.pepper}", bcrypt.salt)
+        Devise.secure_compare(password, encrypted_password)
       end
 
       # Set password and password confirmation to nil
@@ -89,11 +71,11 @@ module Devise
         end
 
         result = if valid_password?(current_password)
-          update(params, *options)
+          update_attributes(params, *options)
         else
-          assign_attributes(params, *options)
-          valid?
-          errors.add(:current_password, current_password.blank? ? :blank : :invalid)
+          self.assign_attributes(params, *options)
+          self.valid?
+          self.errors.add(:current_password, current_password.blank? ? :blank : :invalid)
           false
         end
 
@@ -117,7 +99,7 @@ module Devise
         params.delete(:password)
         params.delete(:password_confirmation)
 
-        result = update(params, *options)
+        result = update_attributes(params, *options)
         clean_up_passwords
         result
       end
@@ -129,8 +111,8 @@ module Devise
         result = if valid_password?(current_password)
           destroy
         else
-          valid?
-          errors.add(:current_password, current_password.blank? ? :blank : :invalid)
+          self.valid?
+          self.errors.add(:current_password, current_password.blank? ? :blank : :invalid)
           false
         end
 
@@ -155,56 +137,19 @@ module Devise
         encrypted_password[0,29] if encrypted_password
       end
 
-      if Devise.activerecord51?
-        # Send notification to user when email changes.
-        def send_email_changed_notification
-          send_devise_notification(:email_changed, to: email_before_last_save)
-        end
-      else
-        # Send notification to user when email changes.
-        def send_email_changed_notification
-          send_devise_notification(:email_changed, to: email_was)
-        end
-      end
-
-      # Send notification to user when password changes.
-      def send_password_change_notification
-        send_devise_notification(:password_change)
-      end
-
     protected
 
-      # Hashes the password using bcrypt. Custom hash functions should override
+      # Digests the password using bcrypt. Custom encryption should override
       # this method to apply their own algorithm.
       #
       # See https://github.com/plataformatec/devise-encryptable for examples
-      # of other hashing engines.
+      # of other encryption engines.
       def password_digest(password)
-        Devise::Encryptor.digest(self.class, password)
-      end
-
-      if Devise.activerecord51?
-        def send_email_changed_notification?
-          self.class.send_email_changed_notification && saved_change_to_email? && !@skip_email_changed_notification
-        end
-      else
-        def send_email_changed_notification?
-          self.class.send_email_changed_notification && email_changed? && !@skip_email_changed_notification
-        end
-      end
-
-      if Devise.activerecord51?
-        def send_password_change_notification?
-          self.class.send_password_change_notification && saved_change_to_encrypted_password? && !@skip_password_change_notification
-        end
-      else
-        def send_password_change_notification?
-          self.class.send_password_change_notification && encrypted_password_changed? && !@skip_password_change_notification
-        end
+        Devise.bcrypt(self.class, password)
       end
 
       module ClassMethods
-        Devise::Models.config(self, :pepper, :stretches, :send_email_changed_notification, :send_password_change_notification)
+        Devise::Models.config(self, :pepper, :stretches)
 
         # We assume this method already gets the sanitized values from the
         # DatabaseAuthenticatable strategy. If you are using this method on

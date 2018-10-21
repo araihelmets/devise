@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 class HomeController < ApplicationController
   def index
   end
@@ -22,10 +20,6 @@ class HomeController < ApplicationController
   end
 
   def unauthenticated
-    if Devise::Test.rails5?
-      render body: "unauthenticated", status: :unauthorized
-    else
-      render text: "unauthenticated", status: :unauthorized
-    end
+    render text: "unauthenticated", status: :unauthorized
   end
 end

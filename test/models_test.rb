@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'test_helper'
 require 'test_models'
 
@@ -15,7 +13,7 @@ class ActiveRecordTest < ActiveSupport::TestCase
     end
 
     (Devise::ALL - modules).each do |mod|
-      refute include_module?(klass, mod)
+      assert_not include_module?(klass, mod)
     end
   end
 
@@ -94,27 +92,20 @@ class ActiveRecordTest < ActiveSupport::TestCase
   end
 end
 
-module StubModelFilters
-  def stub_filter(name)
-    define_singleton_method(name) { |*| nil }
-  end
-end
-
 class CheckFieldsTest < ActiveSupport::TestCase
   test 'checks if the class respond_to the required fields' do
     Player = Class.new do
       extend Devise::Models
-      extend StubModelFilters
 
-      stub_filter :before_validation
-      stub_filter :after_update
+      def self.before_validation(instance)
+      end
 
       devise :database_authenticatable
 
       attr_accessor :encrypted_password, :email
     end
 
-    assert_nothing_raised do
+    assert_nothing_raised Devise::Models::MissingAttribute do
       Devise::Models.check_fields!(Player)
     end
   end
@@ -122,10 +113,9 @@ class CheckFieldsTest < ActiveSupport::TestCase
   test 'raises Devise::Models::MissingAtrribute and shows the missing attribute if the class doesn\'t respond_to one of the attributes' do
     Clown = Class.new do
       extend Devise::Models
-      extend StubModelFilters
 
-      stub_filter :before_validation
-      stub_filter :after_update
+      def self.before_validation(instance)
+      end
 
       devise :database_authenticatable
 
@@ -140,10 +130,9 @@ class CheckFieldsTest < ActiveSupport::TestCase
   test 'raises Devise::Models::MissingAtrribute with all the missing attributes if there is more than one' do
     Magician = Class.new do
       extend Devise::Models
-      extend StubModelFilters
 
-      stub_filter :before_validation
-      stub_filter :after_update
+      def self.before_validation(instance)
+      end
 
       devise :database_authenticatable
     end

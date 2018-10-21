@@ -1,8 +1,6 @@
-# frozen_string_literal: true
-
 require 'test_helper'
 
-ExpectedRoutingError = MiniTest::Assertion
+ExpectedRoutingError = Devise.rails4? ? MiniTest::Assertion : ActionController::RoutingError
 
 class DefaultRoutingTest < ActionController::TestCase
   test 'map new user session' do
@@ -16,7 +14,7 @@ class DefaultRoutingTest < ActionController::TestCase
   end
 
   test 'map destroy user session' do
-    assert_recognizes({controller: 'devise/sessions', action: 'destroy'}, {path: 'users/sign_out', method: :delete})
+    assert_recognizes({controller: 'devise/sessions', action: 'destroy'}, {path: 'users/sign_out', method: :get})
     assert_named_route "/users/sign_out", :destroy_user_session_path
   end
 
@@ -98,12 +96,12 @@ class DefaultRoutingTest < ActionController::TestCase
   test 'map omniauth callbacks' do
     assert_recognizes({controller: 'users/omniauth_callbacks', action: 'facebook'}, {path: 'users/auth/facebook/callback', method: :get})
     assert_recognizes({controller: 'users/omniauth_callbacks', action: 'facebook'}, {path: 'users/auth/facebook/callback', method: :post})
-    assert_named_route "/users/auth/facebook/callback", :user_facebook_omniauth_callback_path
+    assert_named_route "/users/auth/facebook/callback", :user_omniauth_callback_path, :facebook
 
     # named open_id
     assert_recognizes({controller: 'users/omniauth_callbacks', action: 'google'}, {path: 'users/auth/google/callback', method: :get})
     assert_recognizes({controller: 'users/omniauth_callbacks', action: 'google'}, {path: 'users/auth/google/callback', method: :post})
-    assert_named_route "/users/auth/google/callback", :user_google_omniauth_callback_path
+    assert_named_route "/users/auth/google/callback", :user_omniauth_callback_path, :google
 
     assert_raise ExpectedRoutingError do
       assert_recognizes({controller: 'ysers/omniauth_callbacks', action: 'twitter'}, {path: 'users/auth/twitter/callback', method: :get})
@@ -148,7 +146,7 @@ class CustomizedRoutingTest < ActionController::TestCase
   end
 
   test 'map account with custom path name for session sign out' do
-    assert_recognizes({controller: 'devise/sessions', action: 'destroy', locale: 'en'}, {path: '/en/accounts/logout', method: :delete })
+    assert_recognizes({controller: 'devise/sessions', action: 'destroy', locale: 'en'}, '/en/accounts/logout')
   end
 
   test 'map account with custom path name for password' do
@@ -204,52 +202,37 @@ class CustomizedRoutingTest < ActionController::TestCase
   end
 
   test 'map with format false for sessions' do
-    expected_params = {controller: 'devise/sessions', action: 'new'}
-    expected_params[:format] = false if Devise::Test.rails5?
-
-    assert_recognizes(expected_params, {path: '/htmlonly_admin/sign_in', method: :get})
+    assert_recognizes({controller: 'devise/sessions', action: 'new'}, {path: '/htmlonly_admin/sign_in', method: :get})
     assert_raise ExpectedRoutingError do
-      assert_recognizes(expected_params, {path: '/htmlonly_admin/sign_in.xml', method: :get})
+      assert_recognizes({controller: 'devise/sessions', action: 'new'}, {path: '/htmlonly_admin/sign_in.xml', method: :get})
     end
   end
 
   test 'map with format false for passwords' do
-    expected_params = {controller: 'devise/passwords', action: 'create'}
-    expected_params[:format] = false if Devise::Test.rails5?
-
-    assert_recognizes(expected_params, {path: '/htmlonly_admin/password', method: :post})
+    assert_recognizes({controller: 'devise/passwords', action: 'create'}, {path: '/htmlonly_admin/password', method: :post})
     assert_raise ExpectedRoutingError do
-      assert_recognizes(expected_params, {path: '/htmlonly_admin/password.xml', method: :post})
+      assert_recognizes({controller: 'devise/passwords', action: 'create'}, {path: '/htmlonly_admin/password.xml', method: :post})
     end
   end
 
   test 'map with format false for registrations' do
-    expected_params = {controller: 'devise/registrations', action: 'new'}
-    expected_params[:format] = false if Devise::Test.rails5?
-
-    assert_recognizes(expected_params, {path: '/htmlonly_admin/sign_up', method: :get})
+    assert_recognizes({controller: 'devise/registrations', action: 'new'}, {path: '/htmlonly_admin/sign_up', method: :get})
     assert_raise ExpectedRoutingError do
-      assert_recognizes(expected_params, {path: '/htmlonly_admin/sign_up.xml', method: :get})
+      assert_recognizes({controller: 'devise/registrations', action: 'new'}, {path: '/htmlonly_admin/sign_up.xml', method: :get})
     end
   end
 
   test 'map with format false for confirmations' do
-    expected_params = {controller: 'devise/confirmations', action: 'show'}
-    expected_params[:format] = false if Devise::Test.rails5?
-
-    assert_recognizes(expected_params, {path: '/htmlonly_users/confirmation', method: :get})
+    assert_recognizes({controller: 'devise/confirmations', action: 'show'}, {path: '/htmlonly_users/confirmation', method: :get})
     assert_raise ExpectedRoutingError do
-      assert_recognizes(expected_params, {path: '/htmlonly_users/confirmation.xml', method: :get})
+      assert_recognizes({controller: 'devise/confirmations', action: 'show'}, {path: '/htmlonly_users/confirmation.xml', method: :get})
     end
   end
 
   test 'map with format false for unlocks' do
-    expected_params = {controller: 'devise/unlocks', action: 'show'}
-    expected_params[:format] = false if Devise::Test.rails5?
-
-    assert_recognizes(expected_params, {path: '/htmlonly_users/unlock', method: :get})
+    assert_recognizes({controller: 'devise/unlocks', action: 'show'}, {path: '/htmlonly_users/unlock', method: :get})
     assert_raise ExpectedRoutingError do
-      assert_recognizes(expected_params, {path: '/htmlonly_users/unlock.xml', method: :get})
+      assert_recognizes({controller: 'devise/unlocks', action: 'show'}, {path: '/htmlonly_users/unlock.xml', method: :get})
     end
   end
 

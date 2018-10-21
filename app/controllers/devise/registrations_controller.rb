@@ -1,36 +1,39 @@
-# frozen_string_literal: true
-
 class Devise::RegistrationsController < DeviseController
-  prepend_before_action :require_no_authentication, only: [:new, :create, :cancel]
-  prepend_before_action :authenticate_scope!, only: [:edit, :update, :destroy]
-  prepend_before_action :set_minimum_password_length, only: [:new, :edit]
+  prepend_before_filter :require_no_authentication, only: [ :new, :create, :cancel ]
+  prepend_before_filter :authenticate_scope!, only: [:edit, :update, :destroy]
 
   # GET /resource/sign_up
   def new
-    build_resource
-    yield resource if block_given?
-    respond_with resource
+    build_resource({})
+    @validatable = devise_mapping.validatable?
+    if @validatable
+      @minimum_password_length = resource_class.password_length.min
+    end
+    respond_with self.resource
   end
 
   # POST /resource
   def create
     build_resource(sign_up_params)
 
-    resource.save
+    resource_saved = resource.save
     yield resource if block_given?
-    if resource.persisted?
+    if resource_saved
       if resource.active_for_authentication?
-        set_flash_message! :notice, :signed_up
+        set_flash_message :notice, :signed_up if is_flashing_format?
         sign_up(resource_name, resource)
         respond_with resource, location: after_sign_up_path_for(resource)
       else
-        set_flash_message! :notice, :"signed_up_but_#{resource.inactive_message}"
+        set_flash_message :notice, :"signed_up_but_#{resource.inactive_message}" if is_flashing_format?
         expire_data_after_sign_in!
         respond_with resource, location: after_inactive_sign_up_path_for(resource)
       end
     else
       clean_up_passwords resource
-      set_minimum_password_length
+      @validatable = devise_mapping.validatable?
+      if @validatable
+        @minimum_password_length = resource_class.password_length.min
+      end
       respond_with resource
     end
   end
@@ -55,11 +58,10 @@ class Devise::RegistrationsController < DeviseController
           :update_needs_confirmation : :updated
         set_flash_message :notice, flash_key
       end
-      bypass_sign_in resource, scope: resource_name
+      sign_in resource_name, resource, bypass: true
       respond_with resource, location: after_update_path_for(resource)
     else
       clean_up_passwords resource
-      set_minimum_password_length
       respond_with resource
     end
   end
@@ -68,7 +70,7 @@ class Devise::RegistrationsController < DeviseController
   def destroy
     resource.destroy
     Devise.sign_out_all_scopes ? sign_out : sign_out(resource_name)
-    set_flash_message! :notice, :destroyed
+    set_flash_message :notice, :destroyed if is_flashing_format?
     yield resource if block_given?
     respond_with_navigational(resource){ redirect_to after_sign_out_path_for(resource_name) }
   end
@@ -99,8 +101,8 @@ class Devise::RegistrationsController < DeviseController
 
   # Build a devise resource passing in the session. Useful to move
   # temporary session data to the newly created user.
-  def build_resource(hash = {})
-    self.resource = resource_class.new_with_session(hash, session)
+  def build_resource(hash=nil)
+    self.resource = resource_class.new_with_session(hash || {}, session)
   end
 
   # Signs in a user on sign up. You can overwrite this method in your own
@@ -112,7 +114,7 @@ class Devise::RegistrationsController < DeviseController
   # The path used after sign up. You need to overwrite this method
   # in your own RegistrationsController.
   def after_sign_up_path_for(resource)
-    after_sign_in_path_for(resource) if is_navigational_format?
+    after_sign_in_path_for(resource)
   end
 
   # The path used after sign up for inactive accounts. You need to overwrite
@@ -142,9 +144,5 @@ class Devise::RegistrationsController < DeviseController
 
   def account_update_params
     devise_parameter_sanitizer.sanitize(:account_update)
-  end
-
-  def translation_scope
-    'devise.registrations'
   end
 end

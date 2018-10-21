@@ -1,8 +1,6 @@
-# frozen_string_literal: true
-
 require 'test_helper'
 
-class RegistrationTest < Devise::IntegrationTest
+class RegistrationTest < ActionDispatch::IntegrationTest
 
   test 'a guest admin should be able to sign in successfully' do
     get new_admin_session_path
@@ -66,11 +64,11 @@ class RegistrationTest < Devise::IntegrationTest
     assert_not_contain 'You have to confirm your account before continuing'
     assert_current_url "/"
 
-    refute warden.authenticated?(:user)
+    assert_not warden.authenticated?(:user)
 
     user = User.to_adapter.find_first(order: [:id, :desc])
     assert_equal user.email, 'new_user@test.com'
-    refute user.confirmed?
+    assert_not user.confirmed?
   end
 
   test 'a guest user should receive the confirmation instructions from the default mailer' do
@@ -94,7 +92,7 @@ class RegistrationTest < Devise::IntegrationTest
     click_button 'Sign up'
 
     assert_current_url "/?custom=1"
-    refute warden.authenticated?(:user)
+    assert_not warden.authenticated?(:user)
   end
 
   test 'a guest user cannot sign up with invalid information' do
@@ -112,11 +110,12 @@ class RegistrationTest < Devise::IntegrationTest
     assert_template 'registrations/new'
     assert_have_selector '#error_explanation'
     assert_contain "Email is invalid"
-    assert_contain "Password confirmation doesn't match Password"
+    assert_contain Devise.rails4? ?
+      "Password confirmation doesn't match Password" : "Password doesn't match confirmation"
     assert_contain "2 errors prohibited"
     assert_nil User.to_adapter.find_first
 
-    refute warden.authenticated?(:user)
+    assert_not warden.authenticated?(:user)
   end
 
   test 'a guest should not sign up with email/password that already exists' do
@@ -135,7 +134,7 @@ class RegistrationTest < Devise::IntegrationTest
     assert_current_url '/users'
     assert_contain(/Email.*already.*taken/)
 
-    refute warden.authenticated?(:user)
+    assert_not warden.authenticated?(:user)
   end
 
   test 'a guest should not be able to change account' do
@@ -218,14 +217,9 @@ class RegistrationTest < Devise::IntegrationTest
     fill_in 'current password', with: '12345678'
     click_button 'Update'
 
-    assert_contain "Password confirmation doesn't match Password"
-    refute User.to_adapter.find_first.valid_password?('pas123')
-  end
-  
-  test 'a signed in user should see a warning about minimum password length' do
-    sign_in_as_user
-    get edit_user_registration_path
-    assert_contain 'characters minimum'
+    assert_contain Devise.rails4? ?
+      "Password confirmation doesn't match Password" : "Password doesn't match confirmation"
+    assert_not User.to_adapter.find_first.valid_password?('pas123')
   end
 
   test 'a signed in user should be able to cancel their account' do
@@ -265,7 +259,7 @@ class RegistrationTest < Devise::IntegrationTest
   end
 
   test 'an admin sign up with valid information in XML format should return valid response' do
-    post admin_registration_path(format: 'xml'), params: { admin: { email: 'new_user@test.com', password: 'new_user123', password_confirmation: 'new_user123' } }
+    post admin_registration_path(format: 'xml'), admin: { email: 'new_user@test.com', password: 'new_user123', password_confirmation: 'new_user123' }
     assert_response :success
     assert response.body.include? %(<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<admin>)
 
@@ -274,7 +268,7 @@ class RegistrationTest < Devise::IntegrationTest
   end
 
   test 'a user sign up with valid information in XML format should return valid response' do
-    post user_registration_path(format: 'xml'), params: { user: { email: 'new_user@test.com', password: 'new_user123', password_confirmation: 'new_user123' } }
+    post user_registration_path(format: 'xml'), user: { email: 'new_user@test.com', password: 'new_user123', password_confirmation: 'new_user123' }
     assert_response :success
     assert response.body.include? %(<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<user>)
 
@@ -283,21 +277,21 @@ class RegistrationTest < Devise::IntegrationTest
   end
 
   test 'a user sign up with invalid information in XML format should return invalid response' do
-    post user_registration_path(format: 'xml'), params: { user: { email: 'new_user@test.com', password: 'new_user123', password_confirmation: 'invalid' } }
+    post user_registration_path(format: 'xml'), user: { email: 'new_user@test.com', password: 'new_user123', password_confirmation: 'invalid' }
     assert_response :unprocessable_entity
     assert response.body.include? %(<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<errors>)
   end
 
   test 'a user update information with valid data in XML format should return valid response' do
     user = sign_in_as_user
-    put user_registration_path(format: 'xml'), params: { user: { current_password: '12345678', email: 'user.new@test.com' } }
+    put user_registration_path(format: 'xml'), user: { current_password: '12345678', email: 'user.new@test.com' }
     assert_response :success
     assert_equal user.reload.email, 'user.new@test.com'
   end
 
   test 'a user update information with invalid data in XML format should return invalid response' do
     user = sign_in_as_user
-    put user_registration_path(format: 'xml'), params: { user: { current_password: 'invalid', email: 'user.new@test.com' } }
+    put user_registration_path(format: 'xml'), user: { current_password: 'invalid', email: 'user.new@test.com' }
     assert_response :unprocessable_entity
     assert_equal user.reload.email, 'user@test.com'
   end
@@ -310,7 +304,7 @@ class RegistrationTest < Devise::IntegrationTest
   end
 end
 
-class ReconfirmableRegistrationTest < Devise::IntegrationTest
+class ReconfirmableRegistrationTest < ActionDispatch::IntegrationTest
   test 'a signed in admin should see a more appropriate flash message when editing their account if reconfirmable is enabled' do
     sign_in_as_admin
     get edit_admin_registration_path

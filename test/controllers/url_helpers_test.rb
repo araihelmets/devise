@@ -1,8 +1,6 @@
-# frozen_string_literal: true
-
 require 'test_helper'
 
-class RoutesTest < Devise::ControllerTestCase
+class RoutesTest < ActionController::TestCase
   tests ApplicationController
 
   def assert_path_and_url(name, prepend_path=nil)
